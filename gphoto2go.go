@@ -2,6 +2,7 @@ package gphoto2go
 
 // #cgo pkg-config: libgphoto2
 // #include <gphoto2.h>
+// #include <gphoto2-setting.h>
 // #include <stdlib.h>
 import "C"
 import "unsafe"
@@ -28,6 +29,7 @@ type CameraFilePath struct {
 
 func (c *Camera) Init() int {
 	c.context = C.gp_context_new()
+	C.gp_setting_set(C.CString("ptp2"), C.CString("capturetarget"), C.CString("card"))
 
 	C.gp_camera_new(&c.camera)
 	err := C.gp_camera_init(c.camera, c.context)
