@@ -4,6 +4,7 @@ package gphoto2go
 // #include <gphoto2.h>
 // #include <gphoto2-setting.h>
 // #include <stdlib.h>
+// #include <gphoto2/gphoto2-camera.h>
 import "C"
 import "unsafe"
 
@@ -15,6 +16,7 @@ const (
 	CAPTURE_IMAGE = C.GP_CAPTURE_IMAGE
 	CAPTURE_MOVIE = C.GP_CAPTURE_MOVIE
 	CAPTURE_SOUND = C.GP_CAPTURE_SOUND
+	GP_OK         = C.GP_OK
 )
 
 type Camera struct {
@@ -22,12 +24,14 @@ type Camera struct {
 	context *C.GPContext
 }
 
+var portinfolist *C.GPPortInfoList
+
 type CameraFilePath struct {
 	Name   string
 	Folder string
 }
 
-func (c *Camera) Init(settings [][]string) int {
+func (c *Camera) Init(settings [][]string, port string) int {
 	c.context = C.gp_context_new()
 
 	for _, cfg := range settings {
@@ -35,6 +39,32 @@ func (c *Camera) Init(settings [][]string) int {
 	}
 
 	C.gp_camera_new(&c.camera)
+
+	ret := C.gp_port_info_list_new(&portinfolist)
+	if ret < GP_OK {
+		return int(ret)
+	}
+	ret = C.gp_port_info_list_load(portinfolist)
+	if ret < 0 {
+		return int(ret)
+	}
+	ret = C.gp_port_info_list_count(portinfolist)
+	if ret < 0 {
+		return int(ret)
+	}
+
+	var pi C.GPPortInfo
+	p := C.gp_port_info_list_lookup_path(portinfolist, C.CString(port))
+	ret = C.gp_port_info_list_get_info(portinfolist, p, &pi)
+	if ret < GP_OK {
+		return int(ret)
+	}
+	ret = C.gp_camera_set_port_info(c.camera, pi)
+	if ret < GP_OK {
+		return int(ret)
+	}
+	return GP_OK
+
 	err := C.gp_camera_init(c.camera, c.context)
 	return int(err)
 }
