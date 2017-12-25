@@ -27,9 +27,12 @@ type CameraFilePath struct {
 	Folder string
 }
 
-func (c *Camera) Init() int {
+func (c *Camera) Init(settings [][]string) int {
 	c.context = C.gp_context_new()
-	C.gp_setting_set(C.CString("ptp2"), C.CString("capturetarget"), C.CString("card"))
+
+	for _, cfg := range settings {
+		C.gp_setting_set(C.CString(cfg[0]), C.CString(cfg[1]), C.CString(cfg[2]))
+	}
 
 	C.gp_camera_new(&c.camera)
 	err := C.gp_camera_init(c.camera, c.context)
