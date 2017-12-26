@@ -63,7 +63,6 @@ func (c *Camera) Init(settings [][]string, port string) int {
 	if ret < GP_OK {
 		return int(ret)
 	}
-	return GP_OK
 
 	err := C.gp_camera_init(c.camera, c.context)
 	return int(err)
