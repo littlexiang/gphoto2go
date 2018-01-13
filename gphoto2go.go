@@ -4,19 +4,25 @@ package gphoto2go
 // #include <gphoto2.h>
 // #include <gphoto2-setting.h>
 // #include <stdlib.h>
-// #include <gphoto2/gphoto2-camera.h>
+// #include <gphoto2-camera.h>
 import "C"
-import "unsafe"
-
-import "strings"
-import "io"
-import "reflect"
+import (
+	"io"
+	"log"
+	"reflect"
+	"strings"
+	"unsafe"
+)
 
 const (
-	CAPTURE_IMAGE = C.GP_CAPTURE_IMAGE
-	CAPTURE_MOVIE = C.GP_CAPTURE_MOVIE
-	CAPTURE_SOUND = C.GP_CAPTURE_SOUND
-	GP_OK         = C.GP_OK
+	CAPTURE_IMAGE           = C.GP_CAPTURE_IMAGE
+	CAPTURE_MOVIE           = C.GP_CAPTURE_MOVIE
+	CAPTURE_SOUND           = C.GP_CAPTURE_SOUND
+	GP_WIDGET_MENU          = C.GP_WIDGET_MENU
+	GP_WIDGET_RADIO         = C.GP_WIDGET_RADIO
+	GP_WIDGET_TEXT          = C.GP_WIDGET_TEXT
+	GP_ERROR_BAD_PARAMETERS = C.GP_ERROR_BAD_PARAMETERS
+	GP_OK                   = C.GP_OK
 )
 
 type Camera struct {
@@ -40,32 +46,46 @@ func (c *Camera) Init(settings [][]string, port string) int {
 
 	C.gp_camera_new(&c.camera)
 
-	ret := C.gp_port_info_list_new(&portinfolist)
-	if ret < GP_OK {
-		return int(ret)
-	}
-	ret = C.gp_port_info_list_load(portinfolist)
-	if ret < 0 {
-		return int(ret)
-	}
-	ret = C.gp_port_info_list_count(portinfolist)
-	if ret < 0 {
-		return int(ret)
-	}
-
-	var pi C.GPPortInfo
-	p := C.gp_port_info_list_lookup_path(portinfolist, C.CString(port))
-	ret = C.gp_port_info_list_get_info(portinfolist, p, &pi)
-	if ret < GP_OK {
-		return int(ret)
-	}
-	ret = C.gp_camera_set_port_info(c.camera, pi)
-	if ret < GP_OK {
-		return int(ret)
-	}
+	c.initPort(port)
 
 	err := C.gp_camera_init(c.camera, c.context)
+	// log.Println("init camera", err)
+	if err == 0 {
+		//nikon special settings
+		c.setConfig("applicationmode", "Application Mode 1")
+	}
+
 	return int(err)
+}
+
+func (c *Camera) initPort(port string) int {
+	if port != "" {
+		ret := C.gp_port_info_list_new(&portinfolist)
+		if ret < GP_OK {
+			return int(ret)
+		}
+		ret = C.gp_port_info_list_load(portinfolist)
+		if ret < 0 {
+			return int(ret)
+		}
+		ret = C.gp_port_info_list_count(portinfolist)
+		if ret < 0 {
+			return int(ret)
+		}
+
+		var pi C.GPPortInfo
+		p := C.gp_port_info_list_lookup_path(portinfolist, C.CString(port))
+		ret = C.gp_port_info_list_get_info(portinfolist, p, &pi)
+		if ret < GP_OK {
+			return int(ret)
+		}
+		ret = C.gp_camera_set_port_info(c.camera, pi)
+		if ret < GP_OK {
+			return int(ret)
+		}
+	}
+
+	return 0
 }
 
 func (c *Camera) Exit() int {
@@ -349,4 +369,75 @@ func (c *Camera) DeleteFile(folder, file string) int {
 	filePointer := (*C.char)(unsafe.Pointer(&fileBytes[0]))
 	err := C.gp_camera_file_delete(c.camera, folderPointer, filePointer, c.context)
 	return int(err)
+}
+
+func _lookup_widget(widget *C.CameraWidget, key string, child **C.CameraWidget) C.int {
+	ret := C.gp_widget_get_child_by_name(widget, C.CString(key), child)
+	if ret < GP_OK {
+		ret = C.gp_widget_get_child_by_label(widget, C.CString(key), child)
+	}
+	return ret
+}
+
+func (c *Camera) setConfig(key string, val string) int {
+	var widget *C.CameraWidget
+	var child *C.CameraWidget
+
+	var widgetType C.CameraWidgetType
+
+	ret := C.gp_camera_get_config(c.camera, &widget, c.context)
+	if ret < GP_OK {
+		log.Printf("camera_get_config failed: %d\n", ret)
+		return int(ret)
+	}
+
+	ret = _lookup_widget(widget, key, &child)
+	defer func() {
+		C.gp_widget_free(widget)
+	}()
+
+	if ret < GP_OK {
+		log.Printf("lookup widget failed: %d\n", ret)
+		return int(ret)
+	}
+
+	/* This type check is optional, if you know what type the label
+	 * has already. If you are not sure, better check. */
+	ret = C.gp_widget_get_type(child, &widgetType)
+	if ret < GP_OK {
+		log.Printf("widget get type failed: %d\n", ret)
+		return int(ret)
+	}
+
+	switch widgetType {
+	case GP_WIDGET_MENU:
+	case GP_WIDGET_TEXT:
+	case GP_WIDGET_RADIO:
+		// ok
+	default:
+		log.Printf("widget has bad type %d\n", widgetType)
+		return int(GP_ERROR_BAD_PARAMETERS)
+	}
+
+	cVal := C.CString(val)
+	ret = C.gp_widget_set_value(child, unsafe.Pointer(cVal))
+	log.Println("config info:", child, widget, widgetType)
+	/* This is the actual set call. Note that we keep
+	 * ownership of the string and have to free it if necessary.
+	 */
+	log.Printf("config set: %#v %#v %#v", key, val, ret)
+	if ret < GP_OK {
+		return int(ret)
+	}
+
+	ret = C.gp_camera_set_single_config(c.camera, C.CString(key), child, c.context)
+	log.Println("gp_camera_set_single_config:", key, ret)
+
+	if ret != GP_OK {
+		/* This stores it on the camera again */
+		ret = C.gp_camera_set_config(c.camera, widget, c.context)
+		log.Println("gp_camera_set_config:", key, ret)
+	}
+
+	return int(ret)
 }
