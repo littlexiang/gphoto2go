@@ -49,12 +49,6 @@ func (c *Camera) Init(settings [][]string, port string) int {
 	c.initPort(port)
 
 	err := C.gp_camera_init(c.camera, c.context)
-	// log.Println("init camera", err)
-	if err == 0 {
-		//nikon special settings
-		c.setConfig("applicationmode", "Application Mode 1")
-	}
-
 	return int(err)
 }
 
@@ -379,7 +373,7 @@ func _lookup_widget(widget *C.CameraWidget, key string, child **C.CameraWidget) 
 	return ret
 }
 
-func (c *Camera) setConfig(key string, val string) int {
+func (c *Camera) SetConfig(key string, val string) int {
 	var widget *C.CameraWidget
 	var child *C.CameraWidget
 
