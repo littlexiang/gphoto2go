@@ -114,9 +114,10 @@ func (c *Camera) TriggerCaptureToFile() (CameraFilePath, int) {
 type CameraEventType int
 
 const (
-	EventUnknown   CameraEventType = C.GP_EVENT_UNKNOWN
-	EventTimeout   CameraEventType = C.GP_EVENT_TIMEOUT
-	EventFileAdded CameraEventType = C.GP_EVENT_FILE_ADDED
+	EventUnknown     CameraEventType = C.GP_EVENT_UNKNOWN
+	EventTimeout     CameraEventType = C.GP_EVENT_TIMEOUT
+	EventFileAdded   CameraEventType = C.GP_EVENT_FILE_ADDED
+	EventFileChanged CameraEventType = C.GP_EVENT_FILE_CHANGED
 )
 
 type CameraEvent struct {
