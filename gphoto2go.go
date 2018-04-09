@@ -145,7 +145,7 @@ func cCameraEventToGoCameraEvent(voidPtr unsafe.Pointer, eventType C.CameraEvent
 	ce := new(CameraEvent)
 	ce.Type = CameraEventType(eventType)
 
-	if ce.Type == EventFileAdded {
+	if ce.Type == EventFileAdded || ce.Type == EventFileChanged {
 		cameraFilePath := (*C.CameraFilePath)(voidPtr)
 		ce.File = C.GoString((*C.char)(&cameraFilePath.name[0]))
 		ce.Folder = C.GoString((*C.char)(&cameraFilePath.folder[0]))
