@@ -5,6 +5,9 @@ package gphoto2go
 // #include <gphoto2-setting.h>
 // #include <stdlib.h>
 // #include <gphoto2-camera.h>
+// #ifndef GP_EVENT_FILE_CHANGED
+// #define GP_EVENT_FILE_CHANGED 8
+// #endif
 import "C"
 import (
 	"io"
