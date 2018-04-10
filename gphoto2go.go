@@ -5,9 +5,6 @@ package gphoto2go
 // #include <gphoto2-setting.h>
 // #include <stdlib.h>
 // #include <gphoto2-camera.h>
-// #ifndef GP_EVENT_FILE_CHANGED
-// #define GP_EVENT_FILE_CHANGED 5
-// #endif
 import "C"
 import (
 	"io"
@@ -120,7 +117,8 @@ const (
 	EventUnknown     CameraEventType = C.GP_EVENT_UNKNOWN
 	EventTimeout     CameraEventType = C.GP_EVENT_TIMEOUT
 	EventFileAdded   CameraEventType = C.GP_EVENT_FILE_ADDED
-	EventFileChanged CameraEventType = C.GP_EVENT_FILE_CHANGED
+	//compatible fix, cannot use c defined value
+	EventFileChanged CameraEventType = 5
 )
 
 type CameraEvent struct {
